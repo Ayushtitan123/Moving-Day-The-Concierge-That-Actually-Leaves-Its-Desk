@@ -1,0 +1,22 @@
+{
+  "name": "moving-day-backend",
+  "version": "1.0.0",
+  "description": "Moving Day Backend Scraper & Agent Coordinator",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "start:demo": "cross-env DEMO_MODE=true node index.js",
+    "test": "node testAgents.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.11.4",
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "moving-day-root": "file:..",
+    "playwright": "^1.44.1",
+    "ws": "^8.17.0"
+  }
+}

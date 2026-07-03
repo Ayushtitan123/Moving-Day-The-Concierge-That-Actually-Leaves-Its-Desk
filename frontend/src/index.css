@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: 222 47% 6%;         /* #060814 */
+    --bg-card: 224 40% 10%;        /* #0d1222 */
+    --border-card: 220 30% 18%;    /* #1f283d */
+    
+    --primary: 250 84% 64%;        /* Indigo: #6366f1 */
+    --primary-glow: 250 84% 64% / 0.15;
+    
+    --secondary: 190 90% 50%;      /* Cyan: #06b6d4 */
+    --accent: 320 80% 60%;         /* Pink: #ec4899 */
+    
+    --text-primary: 210 40% 98%;   /* Slate-50 */
+    --text-muted: 215 20% 65%;     /* Slate-400 */
+  }
+
+  body {
+    background-color: hsl(var(--bg-main));
+    color: hsl(var(--text-primary));
+    font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+}
+
+/* Glassmorphism custom styles */
+.glass-panel {
+  background: linear-gradient(135deg, rgba(17, 24, 48, 0.5) 0%, rgba(13, 18, 35, 0.7) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 15px 35px -5px rgba(99, 102, 241, 0.08), 0 5px 15px -5px rgba(0, 0, 0, 0.4);
+}
+
+/* Gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #fde047 0%, #eab308 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glowing buttons */
+.btn-glow {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, #6366f1, #06b6d4, #ec4899);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  filter: blur(8px);
+}
+
+.btn-glow:hover::after {
+  opacity: 0.65;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(13, 18, 35, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* Print Stylesheet for PDF Generation */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-page-break {
+    page-break-before: always;
+  }
+  
+  .glass-panel {
+    background: none !important;
+    backdrop-filter: none !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    color: black !important;
+  }
+  
+  h1, h2, h3, h4 {
+    color: black !important;
+  }
+  
+  a {
+    color: #1a0dab !important;
+    text-decoration: underline !important;
+  }
+  
+  /* Hide interactive screens on print */
+  .housing-screenshot-img {
+    max-width: 100% !important;
+    border: 1px solid #ccc !important;
+  }
+}
