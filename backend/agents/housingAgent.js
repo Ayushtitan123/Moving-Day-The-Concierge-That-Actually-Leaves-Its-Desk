@@ -228,26 +228,38 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
       progressCallback('Live scrape failed. Loading cached fallback dataset for Singapore...');
       return MOCK_DATA.singapore.housing;
     } else {
-      progressCallback('Live scrape failed. Generating generic search fallback listings...');
+      progressCallback('Live scrape failed. Generating search fallback listings...');
       const screenshotFilename = `housing_${Date.now()}.png`;
-      let templateScreenshot = 'fallback_austin.png';
-      if (normCity.includes('tokyo') || normCity.includes('japan')) {
-        templateScreenshot = 'fallback_tokyo.png';
-      } else if (normCity.includes('singapore')) {
-        templateScreenshot = 'fallback_singapore.png';
-      } else if (normCity.includes('denver')) {
-        templateScreenshot = 'fallback_denver.png';
-      } else if (normCity.includes('seattle')) {
-        templateScreenshot = 'fallback_seattle.png';
-      }
+      const screenshotPath = path.join(__dirname, '..', 'public', 'screenshots', screenshotFilename);
 
+      // Generate a clean SVG placeholder to avoid showing wrong city screenshot
+      let browser2 = null;
       try {
-        fs.copyFileSync(
-          path.join(__dirname, '..', 'public', 'screenshots', templateScreenshot),
-          path.join(__dirname, '..', 'public', 'screenshots', screenshotFilename)
-        );
-      } catch (e) {
-        console.error('Failed to copy fallback screenshot', e);
+        browser2 = await chromium.launch({ headless: true });
+        const ctx2 = await browser2.newContext({ viewport: { width: 1200, height: 600 } });
+        const pg2 = await ctx2.newPage();
+        const svgHtml = `<!DOCTYPE html><html><body style="margin:0;background:#0d1222;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;height:600px;">
+          <div style="text-align:center;color:#fff">
+            <div style="font-size:48px;margin-bottom:16px;">🔍</div>
+            <div style="font-size:28px;font-weight:bold;color:#6366f1;">Housing Search</div>
+            <div style="font-size:18px;margin-top:10px;color:#a5b4fc;">${city}${state ? ', ' + state : ''}</div>
+            <div style="font-size:14px;margin-top:16px;color:#64748b;">Live rental data sourced from web search</div>
+          </div>
+        </body></html>`;
+        await pg2.setContent(svgHtml);
+        await pg2.screenshot({ path: screenshotPath });
+        await browser2.close();
+        browser2 = null;
+      } catch (screenshotErr) {
+        console.error('Placeholder screenshot generation failed:', screenshotErr);
+        if (browser2) await browser2.close();
+        // Last resort: try to copy a generic fallback
+        try {
+          fs.copyFileSync(
+            path.join(__dirname, '..', 'public', 'screenshots', 'fallback_austin.png'),
+            screenshotPath
+          );
+        } catch (e) { /* silent */ }
       }
 
       return {
