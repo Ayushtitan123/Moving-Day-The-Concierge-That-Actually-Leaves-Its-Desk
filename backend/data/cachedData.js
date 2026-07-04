@@ -121,31 +121,31 @@ export const MOCK_DATA = {
           price: "$1,850",
           bedrooms: "2 Bed",
           address: "South Congress Ave, Austin, TX 78704",
-          link: "https://austin.craigslist.org/apa/d/austin-south-congress-gem-2br/7654321001.html"
+          link: "https://austin.craigslist.org/search/apa?max_price=2000&min_bedrooms=2&max_bedrooms=2"
         },
         {
           price: "$2,100",
           bedrooms: "2 Bed",
           address: "East Riverside Dr, Austin, TX 78741",
-          link: "https://austin.craigslist.org/apa/d/austin-modern-living-by-river-2br/7654321002.html"
+          link: "https://www.zillow.com/austin-tx/rentals/2-bedrooms/"
         },
         {
           price: "$2,250",
           bedrooms: "2 Bed",
           address: "Mueller District, Austin, TX 78723",
-          link: "https://austin.craigslist.org/apa/d/austin-mueller-courtyard-apartment/7654321003.html"
+          link: "https://www.apartments.com/austin-tx/2-bedrooms/"
         },
         {
           price: "$1,980",
           bedrooms: "2 Bed",
           address: "Domain Boulevard, Austin, TX 78758",
-          link: "https://austin.craigslist.org/apa/d/austin-walk-to-the-domain-luxury/7654321004.html"
+          link: "https://www.trulia.com/for_rent/Austin,TX/2p_beds/"
         },
         {
           price: "$2,400",
           bedrooms: "2 Bed",
           address: "Zilker Neighborhood, Austin, TX 78704",
-          link: "https://austin.craigslist.org/apa/d/austin-charming-duplex-near-zilker/7654321005.html"
+          link: "https://hotpads.com/austin-tx/apartments-for-rent?bedrooms=2"
         }
       ]
     },
@@ -209,31 +209,31 @@ export const MOCK_DATA = {
           price: "$1,950",
           bedrooms: "2 Bed",
           address: "Capitol Hill, Denver, CO 80203",
-          link: "https://denver.craigslist.org/apa/d/denver-capitol-hill-classic-2br/7654322001.html"
+          link: "https://denver.craigslist.org/search/apa?max_price=2200&min_bedrooms=2&max_bedrooms=2"
         },
         {
           price: "$2,300",
           bedrooms: "2 Bed",
           address: "LoDo / Union Station, Denver, CO 80202",
-          link: "https://denver.craigslist.org/apa/d/denver-modern-loft-near-union-station/7654322002.html"
+          link: "https://www.zillow.com/denver-co/rentals/2-bedrooms/"
         },
         {
           price: "$2,150",
           bedrooms: "2 Bed",
           address: "Five Points / RiNo, Denver, CO 80205",
-          link: "https://denver.craigslist.org/apa/d/denver-rino-district-industrial-2br/7654322003.html"
+          link: "https://www.apartments.com/denver-co/2-bedrooms/"
         },
         {
           price: "$1,890",
           bedrooms: "2 Bed",
           address: "Washington Park, Denver, CO 80209",
-          link: "https://denver.craigslist.org/apa/d/denver-wash-park-cozy-duplex-2br/7654322004.html"
+          link: "https://www.trulia.com/for_rent/Denver,CO/2p_beds/"
         },
         {
           price: "$2,450",
           bedrooms: "2 Bed",
           address: "Cherry Creek, Denver, CO 80206",
-          link: "https://denver.craigslist.org/apa/d/denver-luxury-condo-cherry-creek-2br/7654322005.html"
+          link: "https://hotpads.com/denver-co/apartments-for-rent?bedrooms=2"
         }
       ]
     },
@@ -297,31 +297,31 @@ export const MOCK_DATA = {
           price: "$2,200",
           bedrooms: "2 Bed",
           address: "Capitol Hill, Seattle, WA 98122",
-          link: "https://seattle.craigslist.org/apa/d/seattle-capitol-hill-view-2br/7654323001.html"
+          link: "https://seattle.craigslist.org/search/apa?max_price=2500&min_bedrooms=2&max_bedrooms=2"
         },
         {
           price: "$2,450",
           bedrooms: "2 Bed",
           address: "Ballard Neighborhood, Seattle, WA 98107",
-          link: "https://seattle.craigslist.org/apa/d/seattle-ballard-apartment-with-deck/7654323002.html"
+          link: "https://www.zillow.com/seattle-wa/rentals/2-bedrooms/"
         },
         {
           price: "$2,100",
           bedrooms: "2 Bed",
           address: "Queen Anne, Seattle, WA 98109",
-          link: "https://seattle.craigslist.org/apa/d/seattle-queen-anne-charming-2br/7654323003.html"
+          link: "https://www.apartments.com/seattle-wa/2-bedrooms/"
         },
         {
           price: "$1,980",
           bedrooms: "2 Bed",
           address: "University District, Seattle, WA 98105",
-          link: "https://seattle.craigslist.org/apa/d/seattle-u-district-renovated-2br/7654323004.html"
+          link: "https://www.trulia.com/for_rent/Seattle,WA/2p_beds/"
         },
         {
           price: "$2,600",
           bedrooms: "2 Bed",
           address: "Fremont Neighborhood, Seattle, WA 98103",
-          link: "https://seattle.craigslist.org/apa/d/seattle-fremont-townhouse-2br/7654323005.html"
+          link: "https://hotpads.com/seattle-wa/apartments-for-rent?bedrooms=2"
         }
       ]
     },
@@ -385,31 +385,31 @@ export const MOCK_DATA = {
           price: "¥185,000",
           bedrooms: "2 Bed (2DK)",
           address: "Shibuya-ku, Tokyo 150-0002",
-          link: "https://realestate.co.jp/en/rent/view/100001"
+          link: "https://www.realestate.co.jp/en/rent/search/?prefecture=13&city=&type=1"
         },
         {
           price: "¥210,000",
           bedrooms: "2 Bed (2LDK)",
           address: "Shinjuku-ku, Tokyo 160-0022",
-          link: "https://realestate.co.jp/en/rent/view/100002"
+          link: "https://www.suumo.jp/jj/chintai/ichiran/FR301FC001/?ar=030&bs=040&ta=13&sc=13104"
         },
         {
           price: "¥245,000",
           bedrooms: "2 Bed (2LDK)",
           address: "Minato-ku, Tokyo 106-0032",
-          link: "https://realestate.co.jp/en/rent/view/100003"
+          link: "https://www.homes.co.jp/chintai/tokyo/minato-city/list/"
         },
         {
           price: "¥160,000",
           bedrooms: "2 Bed (2DK)",
           address: "Nakano-ku, Tokyo 164-0001",
-          link: "https://realestate.co.jp/en/rent/view/100004"
+          link: "https://www.gaijinpot.com/apartment-rentals/tokyo/"
         },
         {
           price: "¥198,000",
           bedrooms: "2 Bed (2LDK)",
           address: "Meguro-ku, Tokyo 153-0062",
-          link: "https://realestate.co.jp/en/rent/view/100005"
+          link: "https://tokyoapartment.net/en/search/?city=tokyo"
         }
       ]
     },
@@ -473,31 +473,31 @@ export const MOCK_DATA = {
           price: "S$2,400",
           bedrooms: "2 Bed (Condo)",
           address: "Geylang / Dakota, Singapore 398001",
-          link: "https://www.propertyguru.com.sg/rent-apartment/dakota"
+          link: "https://www.propertyguru.com.sg/property-for-rent?market=residential&freetext=dakota&bedrooms=2"
         },
         {
           price: "S$2,800",
           bedrooms: "2 Bed (HDB)",
           address: "Tiong Bahru, Singapore 160010",
-          link: "https://www.propertyguru.com.sg/rent-apartment/tiongbahru"
+          link: "https://www.propertyguru.com.sg/property-for-rent?market=residential&freetext=tiong+bahru&bedrooms=2"
         },
         {
           price: "S$3,200",
           bedrooms: "2 Bed (Condo)",
           address: "River Valley Road, Singapore 238371",
-          link: "https://www.propertyguru.com.sg/rent-apartment/rivervalley"
+          link: "https://www.99.co/singapore/rentals?bedrooms=2&district=9"
         },
         {
           price: "S$2,100",
           bedrooms: "2 Bed (HDB)",
           address: "Ang Mo Kio, Singapore 560101",
-          link: "https://www.propertyguru.com.sg/rent-apartment/amk"
+          link: "https://www.propertyguru.com.sg/property-for-rent?market=residential&freetext=ang+mo+kio&bedrooms=2"
         },
         {
           price: "S$2,600",
           bedrooms: "2 Bed (HDB)",
           address: "Queenstown, Singapore 140001",
-          link: "https://www.propertyguru.com.sg/rent-apartment/queenstown"
+          link: "https://www.99.co/singapore/rentals?bedrooms=2&district=3"
         }
       ]
     },
