@@ -106,7 +106,7 @@ export default function App() {
           destinationCity,
           destinationState,
           moveDate,
-          budget: parseInt(budget),
+          budget: parseInt(budget.toString().replace(/[^0-9]/g, '')) || 0,
           bedrooms: parseInt(bedrooms)
         }
       }));
@@ -289,10 +289,11 @@ Brief created by Moving Day Relocation Concierge.
             
             <form onSubmit={handleStartSearch} className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="flex flex-col space-y-1.5">
-                <label className="text-xs text-slate-400 font-medium flex items-center">
+                <label htmlFor="currentCity" className="text-xs text-slate-400 font-medium flex items-center">
                   <MapPin className="h-3.5 w-3.5 text-slate-500 mr-1.5" /> Current City
                 </label>
                 <input
+                  id="currentCity"
                   type="text"
                   placeholder="e.g. New York"
                   value={currentCity}
@@ -302,10 +303,11 @@ Brief created by Moving Day Relocation Concierge.
               </div>
 
               <div className="flex flex-col space-y-1.5">
-                <label className="text-xs text-slate-400 font-medium flex items-center">
+                <label htmlFor="destinationCity" className="text-xs text-slate-400 font-medium flex items-center">
                   <MapPin className="h-3.5 w-3.5 text-indigo-400 mr-1.5" /> Destination City *
                 </label>
                 <input
+                  id="destinationCity"
                   type="text"
                   required
                   placeholder="e.g. Austin"
@@ -316,10 +318,11 @@ Brief created by Moving Day Relocation Concierge.
               </div>
 
               <div className="flex flex-col space-y-1.5">
-                <label className="text-xs text-slate-400 font-medium flex items-center">
+                <label htmlFor="destinationState" className="text-xs text-slate-400 font-medium flex items-center">
                   <Globe className="h-3.5 w-3.5 text-indigo-400 mr-1.5" /> Destination State Code *
                 </label>
                 <input
+                  id="destinationState"
                   type="text"
                   required
                   maxLength={2}
@@ -331,10 +334,11 @@ Brief created by Moving Day Relocation Concierge.
               </div>
 
               <div className="flex flex-col space-y-1.5">
-                <label className="text-xs text-slate-400 font-medium flex items-center">
+                <label htmlFor="moveDate" className="text-xs text-slate-400 font-medium flex items-center">
                   <Calendar className="h-3.5 w-3.5 text-slate-500 mr-1.5" /> Approximate Move Date
                 </label>
                 <input
+                  id="moveDate"
                   type="date"
                   value={moveDate}
                   onChange={(e) => setMoveDate(e.target.value)}
@@ -343,23 +347,30 @@ Brief created by Moving Day Relocation Concierge.
               </div>
 
               <div className="flex flex-col space-y-1.5">
-                <label className="text-xs text-slate-400 font-medium flex items-center">
+                <label htmlFor="rentBudget" className="text-xs text-slate-400 font-medium flex items-center">
                   <DollarSign className="h-3.5 w-3.5 text-emerald-400 mr-1.5" /> Max Rent Budget ($)
                 </label>
                 <input
-                  type="number"
+                  id="rentBudget"
+                  type="text"
                   placeholder="e.g. 2000"
                   value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || /^\d+$/.test(val)) {
+                      setBudget(val);
+                    }
+                  }}
                   className="bg-slate-900/60 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                 />
               </div>
 
               <div className="flex flex-col space-y-1.5">
-                <label className="text-xs text-slate-400 font-medium flex items-center">
+                <label htmlFor="bedrooms" className="text-xs text-slate-400 font-medium flex items-center">
                   <Home className="h-3.5 w-3.5 text-slate-500 mr-1.5" /> Bedrooms Needed
                 </label>
                 <select
+                  id="bedrooms"
                   value={bedrooms}
                   onChange={(e) => setBedrooms(e.target.value)}
                   className="bg-slate-900/60 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
