@@ -142,18 +142,36 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
       progressCallback(`Capturing web search verification screenshot...`);
       await page.screenshot({ path: screenshotPath });
 
-      // Extract search snippets
+      // Extract search snippets - decode DDG redirect URLs to real destination URLs
       const searchResults = await page.evaluate(() => {
         const results = [];
         document.querySelectorAll('.result').forEach(el => {
           const titleEl = el.querySelector('.result__title');
           const snippetEl = el.querySelector('.result__snippet');
           const urlEl = el.querySelector('.result__url');
+          const linkEl = el.querySelector('a.result__url');
           if (titleEl && snippetEl) {
+            let url = '';
+            // Try to get the real URL from the uddg param in DDG redirect links
+            if (linkEl && linkEl.href) {
+              try {
+                const parsed = new URL(linkEl.href);
+                const uddg = parsed.searchParams.get('uddg');
+                url = uddg ? decodeURIComponent(uddg) : (urlEl ? urlEl.innerText.trim() : '');
+              } catch (e) {
+                url = urlEl ? urlEl.innerText.trim() : '';
+              }
+            } else if (urlEl) {
+              url = urlEl.innerText.trim();
+            }
+            // Ensure URL is absolute
+            if (url && !url.startsWith('http')) {
+              url = 'https://' + url;
+            }
             results.push({
               title: titleEl.innerText.trim(),
               snippet: snippetEl.innerText.trim(),
-              url: urlEl ? urlEl.href : ''
+              url
             });
           }
         });
@@ -168,16 +186,17 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
       const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const prompt = `
         You are an AI Housing Assistant. I have crawled local search results for apartments in ${city}, ${state || ''} under budget ${budget} with ${bedrooms} bedrooms.
-        Here are the search results:
+        Here are the search results (with real destination URLs already decoded):
         ${JSON.stringify(searchResults)}
         
         Extract the top 5 apartments or rental portals from these search results.
-        If prices are not mentioned in the snippets, generate realistic rental prices for ${city} under ${budget} in the local currency or USD (e.g. S$ or ¥ or $).
+        If prices are not mentioned in the snippets, generate realistic rental prices for ${city} under ${budget} in the local currency or USD (e.g. S$ or ¥ or $ or ₹).
         For each listing, return:
-        - price (e.g. ¥150,000 for Tokyo, S$2,100 for Singapore, $1,800 depending on the local currency)
+        - price (e.g. ¥150,000 for Tokyo, S$2,100 for Singapore, ₹15,000 for Indian cities, $1,800 for US cities)
         - bedrooms (e.g. ${bedrooms} Bed)
         - address (neighborhood, district, or street in ${city})
-        - link (use one of the links from the search results, or a valid local portal link like PropertyGuru, RealEstate.co.jp, Zillow, etc.)
+        - link: MUST be a clean absolute URL starting with "https://" from the search results url field (e.g. https://99acres.com/..., https://magicbricks.com/..., https://zillow.com/...). 
+          NEVER use duckduckgo.com links. NEVER use google.com links. Pick a real real-estate portal URL from the results.
         
         Format the response in JSON:
         {
@@ -199,6 +218,19 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
         generationConfig: { responseMimeType: 'application/json' }
       });
       listingsData = JSON.parse(response.response.text().trim());
+
+      // Post-process: sanitize any remaining DDG redirect or relative links
+      if (listingsData && listingsData.listings) {
+        listingsData.listings = listingsData.listings.map(l => {
+          if (!l.link || l.link.includes('duckduckgo.com') || l.link.includes('google.com/search')) {
+            l.link = `https://www.google.com/search?q=apartments+for+rent+in+${encodeURIComponent(city)}`;
+          }
+          if (l.link && !l.link.startsWith('http')) {
+            l.link = 'https://' + l.link;
+          }
+          return l;
+        });
+      }
     }
 
     await browser.close();
