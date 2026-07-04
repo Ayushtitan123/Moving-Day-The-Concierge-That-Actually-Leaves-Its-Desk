@@ -87,7 +87,7 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
         };
       });
 
-      if (listingsText.links.length > 0 || listingsText.bodyText.length > 1000) {
+      if (listingsText.links.length >= 2) {
         progressCallback('Extracting listings via Gemini...');
         const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const extractionPrompt = `
@@ -221,13 +221,29 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
     } else if (normCity.includes('seattle')) {
       progressCallback('Live scrape failed. Loading cached fallback dataset for Seattle...');
       return MOCK_DATA.seattle.housing;
+    } else if (normCity.includes('tokyo')) {
+      progressCallback('Live scrape failed. Loading cached fallback dataset for Tokyo...');
+      return MOCK_DATA.tokyo.housing;
+    } else if (normCity.includes('singapore')) {
+      progressCallback('Live scrape failed. Loading cached fallback dataset for Singapore...');
+      return MOCK_DATA.singapore.housing;
     } else {
       progressCallback('Live scrape failed. Generating generic search fallback listings...');
       const screenshotFilename = `housing_${Date.now()}.png`;
-      // Copy Austin fallback screenshot so we have a placeholder file
+      let templateScreenshot = 'fallback_austin.png';
+      if (normCity.includes('tokyo') || normCity.includes('japan')) {
+        templateScreenshot = 'fallback_tokyo.png';
+      } else if (normCity.includes('singapore')) {
+        templateScreenshot = 'fallback_singapore.png';
+      } else if (normCity.includes('denver')) {
+        templateScreenshot = 'fallback_denver.png';
+      } else if (normCity.includes('seattle')) {
+        templateScreenshot = 'fallback_seattle.png';
+      }
+
       try {
         fs.copyFileSync(
-          path.join(__dirname, '..', 'public', 'screenshots', 'fallback_austin.png'),
+          path.join(__dirname, '..', 'public', 'screenshots', templateScreenshot),
           path.join(__dirname, '..', 'public', 'screenshots', screenshotFilename)
         );
       } catch (e) {

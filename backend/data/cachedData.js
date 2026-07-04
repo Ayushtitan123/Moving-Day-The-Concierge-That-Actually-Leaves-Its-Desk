@@ -374,6 +374,176 @@ export const MOCK_DATA = {
         "Vehicle registration: You must register your vehicle in Washington within 30 days of moving. Apply in person or by mail through a vehicle licensing office. You will need your out-of-state title, odometer reading, scale weight (if not on title), and fees."
       ]
     }
+  },
+  tokyo: {
+    housing: {
+      sourceName: "Local Listings Tokyo (Fallback)",
+      sourceUrl: "https://realestate.co.jp/en/rent",
+      screenshotUrl: "/screenshots/fallback_tokyo.png",
+      listings: [
+        {
+          price: "¥185,000",
+          bedrooms: "2 Bed (2DK)",
+          address: "Shibuya-ku, Tokyo 150-0002",
+          link: "https://realestate.co.jp/en/rent/view/100001"
+        },
+        {
+          price: "¥210,000",
+          bedrooms: "2 Bed (2LDK)",
+          address: "Shinjuku-ku, Tokyo 160-0022",
+          link: "https://realestate.co.jp/en/rent/view/100002"
+        },
+        {
+          price: "¥245,000",
+          bedrooms: "2 Bed (2LDK)",
+          address: "Minato-ku, Tokyo 106-0032",
+          link: "https://realestate.co.jp/en/rent/view/100003"
+        },
+        {
+          price: "¥160,000",
+          bedrooms: "2 Bed (2DK)",
+          address: "Nakano-ku, Tokyo 164-0001",
+          link: "https://realestate.co.jp/en/rent/view/100004"
+        },
+        {
+          price: "¥198,000",
+          bedrooms: "2 Bed (2LDK)",
+          address: "Meguro-ku, Tokyo 153-0062",
+          link: "https://realestate.co.jp/en/rent/view/100005"
+        }
+      ]
+    },
+    utilities: {
+      sourceName: "Tokyo Municipal Utilities",
+      sourceUrl: "https://html.duckduckgo.com/html/?q=tokyo+utility+providers+foreigner",
+      providers: [
+        {
+          type: "Electricity",
+          name: "TEPCO (Tokyo Electric Power Company)",
+          phone: "0120-999-000",
+          website: "https://www.tepco.co.jp/en/ep/"
+        },
+        {
+          type: "Water",
+          name: "Tokyo Metropolitan Bureau of Waterworks",
+          phone: "03-5326-1101",
+          website: "https://www.waterworks.metro.tokyo.lg.jp/eng/"
+        },
+        {
+          type: "Gas",
+          name: "Tokyo Gas",
+          phone: "0570-002211",
+          website: "https://www.tokyo-gas.co.jp/en/"
+        },
+        {
+          type: "Internet",
+          name: "SoftBank Hikari / NTT Docomo / Sakura Fiber",
+          phone: "0800-111-2009",
+          website: "https://www.softbank.jp/en/internet/"
+        }
+      ]
+    },
+    dmv: {
+      sourceName: "Tokyo Metropolitan Police (License Conversion)",
+      sourceUrl: "https://www.keishicho.metro.tokyo.lg.jp/multilingual/english/traffic_safety/drivers_licenses/index.html",
+      documents: [
+        "Valid Foreign Driver's License",
+        "Official Japanese Translation of the License (from JAF or embassy)",
+        "Japanese Passport or Juminhyo (Certificate of Residence indicating registered domicile)",
+        "Proof of staying in the issuing country for at least 3 months after obtaining the license (e.g. passport entry/exit stamps, transcripts)",
+        "Residence Card (Zairyu Card)"
+      ],
+      steps: [
+        "Obtain Japanese Translation: Visit a Japan Automobile Federation (JAF) office or your embassy to get an official translation of your foreign license.",
+        "Prepare residency proof: Request a Juminhyo (resident record) from your local ward office (Kuyakusho).",
+        "Book appointment: Visit a Driver's License Center in Tokyo (Fuchu, Samezu, or Koto Center) to submit documents for screening.",
+        "Document screening: The center checks whether you resided in the issuing country for 3 months after license issuance.",
+        "Aptitude test: Pass a vision and color screening test at the center.",
+        "Knowledge and Driving test: Pass the 10-question traffic rule test (available in English) and the practical driving track test. (Note: Residents of select countries like US/UK/Canada are exempt from these tests depending on local agreements)."
+      ]
+    }
+  },
+  singapore: {
+    housing: {
+      sourceName: "Local Listings Singapore (Fallback)",
+      sourceUrl: "https://www.propertyguru.com.sg",
+      screenshotUrl: "/screenshots/fallback_singapore.png",
+      listings: [
+        {
+          price: "S$2,400",
+          bedrooms: "2 Bed (Condo)",
+          address: "Geylang / Dakota, Singapore 398001",
+          link: "https://www.propertyguru.com.sg/rent-apartment/dakota"
+        },
+        {
+          price: "S$2,800",
+          bedrooms: "2 Bed (HDB)",
+          address: "Tiong Bahru, Singapore 160010",
+          link: "https://www.propertyguru.com.sg/rent-apartment/tiongbahru"
+        },
+        {
+          price: "S$3,200",
+          bedrooms: "2 Bed (Condo)",
+          address: "River Valley Road, Singapore 238371",
+          link: "https://www.propertyguru.com.sg/rent-apartment/rivervalley"
+        },
+        {
+          price: "S$2,100",
+          bedrooms: "2 Bed (HDB)",
+          address: "Ang Mo Kio, Singapore 560101",
+          link: "https://www.propertyguru.com.sg/rent-apartment/amk"
+        },
+        {
+          price: "S$2,600",
+          bedrooms: "2 Bed (HDB)",
+          address: "Queenstown, Singapore 140001",
+          link: "https://www.propertyguru.com.sg/rent-apartment/queenstown"
+        }
+      ]
+    },
+    utilities: {
+      sourceName: "Singapore National Utilities",
+      sourceUrl: "https://html.duckduckgo.com/html/?q=singapore+utility+providers+open+account",
+      providers: [
+        {
+          type: "Electricity & Water",
+          name: "SP Group (Singapore Power)",
+          phone: "+65 6671 7117",
+          website: "https://www.spgroup.com.sg"
+        },
+        {
+          type: "Gas",
+          name: "City Energy",
+          phone: "1800 555 1661",
+          website: "https://www.cityenergy.com.sg"
+        },
+        {
+          type: "Internet",
+          name: "Singtel / StarHub / MyRepublic",
+          phone: "1688 (Singtel) / 1630 (StarHub)",
+          website: "https://www.singtel.com"
+        }
+      ]
+    },
+    dmv: {
+      sourceName: "Singapore Traffic Police (License Conversion)",
+      sourceUrl: "https://www.police.gov.sg/Advisories/Traffic/Traffic-Matters/Conversion-of-Foreign-Driving-Licence",
+      documents: [
+        "Original Passport and Work Pass (EP, SP, PEP) / Entry Permit",
+        "Original valid Foreign Driver's License",
+        "Official translation of the license (if not in English) or International Driving Permit",
+        "Basic Theory Test (BTT) Result Slip showing a pass score",
+        "Passport-sized photograph against a white background"
+      ],
+      steps: [
+        "Pass Basic Theory Test (BTT): Book and pass the Singapore Basic Theory Test at one of the three driving centers (SSDC Woodlands, BBDC Bukit Batok, or CDC Ubi).",
+        "Prepare documentation: Ensure you have your work pass card, passport, foreign license, and translation if applicable.",
+        "Apply in person: Visit the Traffic Police Counter located at the Singapore Safety Driving Centre (SSDC) or Bukit Batok Driving Centre (BBDC).",
+        "Verification screening: The Traffic Police inspects your physical foreign license and checks eligibility.",
+        "Payment & processing: Pay the S$50 conversion fee via NETS or Cashcard.",
+        "Receive License: You will be issued a temporary slip allowing you to drive, and your physical photo card license will be posted to your address within 2-3 weeks."
+      ]
+    }
   }
 };
 
@@ -383,31 +553,33 @@ export function getDefaultMockData(city, state) {
   if (normCity.includes("austin")) return MOCK_DATA.austin;
   if (normCity.includes("denver")) return MOCK_DATA.denver;
   if (normCity.includes("seattle")) return MOCK_DATA.seattle;
+  if (normCity.includes("tokyo")) return MOCK_DATA.tokyo;
+  if (normCity.includes("singapore")) return MOCK_DATA.singapore;
 
   // Generic fallback if user enters something else in demo mode
   return {
     housing: {
-      sourceName: "Craigslist (Fallback Search)",
-      sourceUrl: `https://craigslist.org`,
+      sourceName: "Local Search Fallback",
+      sourceUrl: `https://html.duckduckgo.com/html/?q=apartments+for+rent+${encodeURIComponent(city)}`,
       screenshotUrl: "/screenshots/fallback_austin.png", // Re-use Austin screenshot
       listings: [
         {
-          price: "$1,600",
+          price: `$${budget}`,
           bedrooms: "2 Bed",
-          address: `Charming Neighborhood, ${city}, ${state || 'US'}`,
-          link: "https://craigslist.org"
+          address: `Charming Neighborhood, ${city}`,
+          link: "https://www.google.com"
         },
         {
-          price: "$1,850",
+          price: `$${Math.round(budget * 0.9)}`,
           bedrooms: "2 Bed",
-          address: `Downtown District, ${city}, ${state || 'US'}`,
-          link: "https://craigslist.org"
+          address: `Downtown District, ${city}`,
+          link: "https://www.google.com"
         },
         {
-          price: "$2,100",
+          price: `$${Math.round(budget * 1.1)}`,
           bedrooms: "2 Bed",
-          address: `Suburban Heights, ${city}, ${state || 'US'}`,
-          link: "https://craigslist.org"
+          address: `Suburban Heights, ${city}`,
+          link: "https://www.google.com"
         }
       ]
     },
@@ -454,3 +626,4 @@ export function getDefaultMockData(city, state) {
     }
   };
 }
+

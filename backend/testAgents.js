@@ -7,9 +7,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 async function test() {
-  const city = 'Austin';
-  const state = 'TX';
-  const budget = 2200;
+  const city = 'Singapore';
+  const state = 'Singapore';
+  const budget = 3000;
   const bedrooms = 2;
 
   console.log('==================================================');
