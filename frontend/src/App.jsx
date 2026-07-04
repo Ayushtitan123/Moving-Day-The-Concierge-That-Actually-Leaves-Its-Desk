@@ -24,11 +24,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function App() {
   const [currentCity, setCurrentCity] = useState('');
-  const [destinationCity, setDestinationCity] = useState('Austin');
-  const [destinationState, setDestinationState] = useState('TX');
-  const [moveDate, setMoveDate] = useState('2026-08-01');
-  const [budget, setBudget] = useState('2500');
-  const [bedrooms, setBedrooms] = useState('2');
+  const [destinationCity, setDestinationCity] = useState('');
+  const [destinationState, setDestinationState] = useState('');
+  const [moveDate, setMoveDate] = useState('');
+  const [budget, setBudget] = useState('');
+  const [bedrooms, setBedrooms] = useState('1');
   
   // App connection and search states
   const [searchStatus, setSearchStatus] = useState('idle'); // idle | searching | complete | error
