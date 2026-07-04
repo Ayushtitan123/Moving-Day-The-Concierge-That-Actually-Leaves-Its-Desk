@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Load environment variables
 dotenv.config();
@@ -42,6 +43,25 @@ import { runHousingAgent } from './agents/housingAgent.js';
 import { runUtilitiesAgent } from './agents/utilitiesAgent.js';
 import { runDmvAgent } from './agents/dmvAgent.js';
 
+// Helper: Auto-resolve state code using Gemini
+async function autoResolveState(city) {
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn("GEMINI_API_KEY is not defined. Cannot auto-resolve state.");
+    return "";
+  }
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const prompt = `Identify the 2-letter US state code for the city: "${city}". If the city is outside the US, identify the primary region/state code or country code. Return ONLY the 2-letter uppercase code (e.g. TX, CO, WA, NY). Do not include any other text or punctuation.`;
+    const response = await model.generateContent(prompt);
+    const result = response.response.text().trim().toUpperCase();
+    return result.length === 2 ? result : "";
+  } catch (err) {
+    console.error("Auto-resolve state error:", err);
+    return "";
+  }
+}
+
 wss.on('connection', (ws) => {
   console.log('Client connected to Moving Day WebSocket');
 
@@ -51,16 +71,39 @@ wss.on('connection', (ws) => {
       if (type === 'startSearch') {
         const { currentCity, destinationCity, destinationState, moveDate, budget, bedrooms } = data;
         
-        console.log(`Starting research for: ${destinationCity}, ${destinationState} (Budget: ${budget}, Beds: ${bedrooms})`);
+        let resolvedState = destinationState ? destinationState.trim().toUpperCase() : '';
+        
+        if (!resolvedState && destinationCity) {
+          console.log(`State code missing. Auto-detecting state code for: ${destinationCity}`);
+          if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ 
+              type: 'progress', 
+              agent: 'dmv', 
+              status: 'searching', 
+              message: `Auto-detecting state code for "${destinationCity}"...` 
+            }));
+          }
+          
+          resolvedState = await autoResolveState(destinationCity);
+          
+          if (resolvedState && ws.readyState === ws.OPEN) {
+            console.log(`Auto-resolved state code for "${destinationCity}": ${resolvedState}`);
+            ws.send(JSON.stringify({ type: 'stateResolved', state: resolvedState }));
+          } else {
+            console.log(`Could not auto-resolve state code for "${destinationCity}".`);
+          }
+        }
+        
+        console.log(`Starting research for: ${destinationCity}, ${resolvedState} (Budget: ${budget}, Beds: ${bedrooms})`);
         
         const isDemoMode = process.env.DEMO_MODE === 'true';
         
         if (isDemoMode) {
           console.log('Running in DEMO_MODE. Simulating research...');
-          await runDemoSimulation(ws, destinationCity, destinationState);
+          await runDemoSimulation(ws, destinationCity, resolvedState);
         } else {
           console.log('Running in LIVE mode. Launching browser agents...');
-          runLiveResearch(ws, destinationCity, destinationState, budget, bedrooms);
+          runLiveResearch(ws, destinationCity, resolvedState, budget, bedrooms);
         }
       }
     } catch (err) {

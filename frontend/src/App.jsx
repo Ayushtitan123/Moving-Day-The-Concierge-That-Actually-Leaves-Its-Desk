@@ -75,7 +75,7 @@ export default function App() {
 
   const handleStartSearch = (e) => {
     e.preventDefault();
-    if (!destinationCity || !destinationState) return;
+    if (!destinationCity) return;
 
     setSearchStatus('searching');
     setLogs([]);
@@ -86,7 +86,7 @@ export default function App() {
       dmv: { status: 'searching', message: 'Queueing agent...', data: null }
     });
 
-    addLog(`Initiating relocation concierge assistant for ${destinationCity}, ${destinationState}...`, 'status');
+    addLog(`Initiating relocation concierge assistant for ${destinationCity}${destinationState ? `, ${destinationState}` : ''}...`, 'status');
 
     // Close existing socket if open
     if (socketRef.current) {
@@ -113,7 +113,14 @@ export default function App() {
     };
 
     ws.onmessage = (event) => {
-      const { type, agent, status, message, data } = JSON.parse(event.data);
+      const parsedData = JSON.parse(event.data);
+      const { type, agent, status, message, data, state } = parsedData;
+
+      if (type === 'stateResolved') {
+        setDestinationState(state);
+        addLog(`[SYSTEM] Auto-resolved destination state: ${state}`, 'system');
+        return;
+      }
 
       if (type === 'progress') {
         setAgents(prev => ({
@@ -319,12 +326,11 @@ Brief created by Moving Day Relocation Concierge.
 
               <div className="flex flex-col space-y-1.5">
                 <label htmlFor="destinationState" className="text-xs text-slate-400 font-medium flex items-center">
-                  <Globe className="h-3.5 w-3.5 text-indigo-400 mr-1.5" /> Destination State Code *
+                  <Globe className="h-3.5 w-3.5 text-indigo-400 mr-1.5" /> Destination State Code (Optional)
                 </label>
                 <input
                   id="destinationState"
                   type="text"
-                  required
                   maxLength={2}
                   placeholder="e.g. TX"
                   value={destinationState}
