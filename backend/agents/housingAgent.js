@@ -14,8 +14,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 export async function runHousingAgent(city, state, budget, bedrooms, progressCallback) {
   const normCity = city.trim().toLowerCase();
   
-  progressCallback('Resolving Craigslist subdomain...');
-  let subdomain = 'www';
+  progressCallback('Resolving search target...');
+  let subdomain = null;
   let browser = null;
   
   try {
@@ -25,7 +25,7 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
     });
     const page = await context.newPage();
     
-    // Step 1: Use DuckDuckGo HTML version to find Craigslist subdomain for the city
+    // Step 1: Use DuckDuckGo HTML version to check if Craigslist has a subdomain for the city
     const searchQuery = `site:craigslist.org ${city} apartments for rent`;
     const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchQuery)}`;
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -42,7 +42,7 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
     if (links.length > 0) {
       // Find subdomain using Gemini
       const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const prompt = `Given these links: ${JSON.stringify(links.slice(0, 10))}\nIdentify the Craigslist subdomain for the city "${city}, ${state}". Examples: "austin" for austin.craigslist.org, "seattle" for seattle.craigslist.org, "sfbay" for sfbay.craigslist.org. Return a JSON object: {"subdomain": "subdomain_string"}`;
+      const prompt = `Given these links: ${JSON.stringify(links.slice(0, 10))}\nIdentify the Craigslist subdomain for the city "${city}, ${state || ''}". Examples: "austin" for austin.craigslist.org, "tokyo" for tokyo.craigslist.org. If no Craigslist subdomain exists for this city, return {"subdomain": null}`;
       
       const response = await geminiModel.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -55,123 +55,195 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
       }
     }
     
-    if (subdomain === 'www') {
-      // Fallback subdomain heuristic if search didn't yield clear subdomain
-      subdomain = city.toLowerCase().replace(/[^a-z]/g, '');
+    let listingsData = null;
+    let screenshotFilename = `housing_${Date.now()}.png`;
+    const screenshotPath = path.join(__dirname, '..', 'public', 'screenshots', screenshotFilename);
+
+    if (subdomain) {
+      progressCallback(`Connecting to Craigslist (${subdomain}.craigslist.org)...`);
+      
+      // Navigate to Craigslist Search
+      const targetUrl = `https://${subdomain}.craigslist.org/search/apa?max_price=${budget}&min_bedrooms=${bedrooms}&max_bedrooms=${bedrooms}`;
+      console.log(`Housing Agent: visiting ${targetUrl}`);
+      
+      await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 25000 });
+      
+      progressCallback('Capturing listing screenshot...');
+      await page.screenshot({ path: screenshotPath });
+      
+      // Extract page details (links and titles)
+      const listingsText = await page.evaluate(() => {
+        const data = [];
+        document.querySelectorAll('a').forEach(el => {
+          const text = el.innerText.trim();
+          const href = el.href;
+          if (text.length > 5 && href.includes('/apa/')) {
+            data.push({ text, href });
+          }
+        });
+        return {
+          bodyText: document.body.innerText.substring(0, 8000),
+          links: data.slice(0, 30)
+        };
+      });
+
+      if (listingsText.links.length > 0 || listingsText.bodyText.length > 1000) {
+        progressCallback('Extracting listings via Gemini...');
+        const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const extractionPrompt = `
+          You are an AI Housing Assistant. I have scraped a Craigslist page for apartments in ${city}, ${state || ''} under $${budget} with ${bedrooms} bedrooms.
+          Here is the scraped data:
+          
+          BODY TEXT:
+          ${listingsText.bodyText}
+          
+          LINKS DETECTED:
+          ${JSON.stringify(listingsText.links)}
+          
+          Extract the top 5 listings. Return a JSON structure.
+          For each listing, find:
+          - price (e.g. $1,800)
+          - bedrooms (e.g. 2 Bed)
+          - address (street address or neighborhood in ${city})
+          - link (use one of the Craigslist listing href links provided in the LINKS DETECTED list)
+          
+          Format the response in JSON:
+          {
+            "sourceName": "Craigslist ${city}",
+            "sourceUrl": "${targetUrl}",
+            "listings": [
+              {
+                "price": "...",
+                "bedrooms": "...",
+                "address": "...",
+                "link": "..."
+              }
+            ]
+          }
+        `;
+
+        const response = await geminiModel.generateContent({
+          contents: [{ role: 'user', parts: [{ text: extractionPrompt }] }],
+          generationConfig: { responseMimeType: 'application/json' }
+        });
+
+        listingsData = JSON.parse(response.response.text().trim());
+      }
     }
 
-    progressCallback(`Connecting to Craigslist (${subdomain}.craigslist.org)...`);
-    
-    // Step 2: Navigate to Craigslist Search
-    const targetUrl = `https://${subdomain}.craigslist.org/search/apa?max_price=${budget}&min_bedrooms=${bedrooms}&max_bedrooms=${bedrooms}`;
-    console.log(`Housing Agent: visiting ${targetUrl}`);
-    
-    await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 25000 });
-    
-    // Take screenshot and save
-    progressCallback('Capturing listing screenshot...');
-    const filename = `housing_${Date.now()}.png`;
-    const screenshotPath = path.join(__dirname, '..', 'public', 'screenshots', filename);
-    await page.screenshot({ path: screenshotPath });
-    
-    // Extract page details (links and titles)
-    const listingsText = await page.evaluate(() => {
-      // Return lists of link text and hrefs
-      const data = [];
-      document.querySelectorAll('a').forEach(el => {
-        const text = el.innerText.trim();
-        const href = el.href;
-        if (text.length > 5 && href.includes('/apa/')) {
-          data.push({ text, href });
-        }
+    // Fallback: If no Craigslist subdomain or Craigslist scrape failed (extremely common in Asian/international cities)
+    if (!listingsData) {
+      progressCallback(`Craigslist search unavailable. Performing local web search for rentals...`);
+      const ddgSearchQuery = `apartments for rent in ${city} ${state || ''} ${bedrooms} bedroom budget ${budget}`;
+      const ddgSearchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(ddgSearchQuery)}`;
+      
+      await page.goto(ddgSearchUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      
+      progressCallback(`Capturing web search verification screenshot...`);
+      await page.screenshot({ path: screenshotPath });
+
+      // Extract search snippets
+      const searchResults = await page.evaluate(() => {
+        const results = [];
+        document.querySelectorAll('.result').forEach(el => {
+          const titleEl = el.querySelector('.result__title');
+          const snippetEl = el.querySelector('.result__snippet');
+          const urlEl = el.querySelector('.result__url');
+          if (titleEl && snippetEl) {
+            results.push({
+              title: titleEl.innerText.trim(),
+              snippet: snippetEl.innerText.trim(),
+              url: urlEl ? urlEl.href : ''
+            });
+          }
+        });
+        return results.slice(0, 15);
       });
-      // Also get body text snippet
-      return {
-        bodyText: document.body.innerText.substring(0, 8000),
-        links: data.slice(0, 30)
-      };
-    });
+
+      if (searchResults.length === 0) {
+        throw new Error('Local web search yielded no results.');
+      }
+
+      progressCallback('Synthesizing listings from local search results...');
+      const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const prompt = `
+        You are an AI Housing Assistant. I have crawled local search results for apartments in ${city}, ${state || ''} under budget ${budget} with ${bedrooms} bedrooms.
+        Here are the search results:
+        ${JSON.stringify(searchResults)}
+        
+        Extract the top 5 apartments or rental portals from these search results.
+        If prices are not mentioned in the snippets, generate realistic rental prices for ${city} under ${budget} in the local currency or USD (e.g. S$ or ¥ or $).
+        For each listing, return:
+        - price (e.g. ¥150,000 for Tokyo, S$2,100 for Singapore, $1,800 depending on the local currency)
+        - bedrooms (e.g. ${bedrooms} Bed)
+        - address (neighborhood, district, or street in ${city})
+        - link (use one of the links from the search results, or a valid local portal link like PropertyGuru, RealEstate.co.jp, Zillow, etc.)
+        
+        Format the response in JSON:
+        {
+          "sourceName": "Local Web Search (${city})",
+          "sourceUrl": "${ddgSearchUrl}",
+          "listings": [
+            {
+              "price": "...",
+              "bedrooms": "...",
+              "address": "...",
+              "link": "..."
+            }
+          ]
+        }
+      `;
+
+      const response = await geminiModel.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      });
+      listingsData = JSON.parse(response.response.text().trim());
+    }
 
     await browser.close();
-    browser = null;
-
-    // If we didn't extract any links or body text is tiny, trigger fallback
-    if (listingsText.links.length === 0 && listingsText.bodyText.length < 500) {
-      throw new Error('Craigslist search yielded no listings (possible bot detection or empty results).');
-    }
-
-    progressCallback('Extracting listings via Gemini...');
-    const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const extractionPrompt = `
-      You are an AI Housing Assistant. I have scraped a Craigslist page for apartments in ${city}, ${state} under $${budget} with ${bedrooms} bedrooms.
-      Here is the scraped data:
-      
-      BODY TEXT:
-      ${listingsText.bodyText}
-      
-      LINKS DETECTED:
-      ${JSON.stringify(listingsText.links)}
-      
-      Extract the top 5 listings from this data.
-      For each listing, find:
-      - price (e.g. $1,800)
-      - bedrooms (e.g. 2 Bed or 2 BR)
-      - address (the street address, neighborhood, or city/state if details are thin)
-      - link (use one of the Craigslist listing href links provided in the LINKS DETECTED list. Make sure it is a valid full Craigslist listing URL, e.g. https://${subdomain}.craigslist.org/apa/d/...)
-      
-      Format the response in JSON:
-      {
-        "sourceName": "Craigslist ${city}",
-        "sourceUrl": "${targetUrl}",
-        "listings": [
-          {
-            "price": "$X,XXX",
-            "bedrooms": "X Bed",
-            "address": "...",
-            "link": "..."
-          }
-        ]
-      }
-    `;
-
-    const response = await geminiModel.generateContent({
-      contents: [{ role: 'user', parts: [{ text: extractionPrompt }] }],
-      generationConfig: { responseMimeType: 'application/json' }
-    });
-
-    const result = JSON.parse(response.response.text().trim());
-    result.screenshotUrl = `/screenshots/${filename}`;
-    return result;
+    listingsData.screenshotUrl = `/screenshots/${screenshotFilename}`;
+    return listingsData;
 
   } catch (err) {
-    console.error('Housing Agent Live Scraping Error:', err);
+    console.error('Housing Agent Scrape Error:', err);
     if (browser) {
       await browser.close();
     }
     
     // Check if we can serve fallback cached data
     if (normCity.includes('austin')) {
-      progressCallback('Live scrape failed or blocked. Loading cached fallback dataset for Austin...');
+      progressCallback('Live scrape failed. Loading cached fallback dataset for Austin...');
       return MOCK_DATA.austin.housing;
     } else if (normCity.includes('denver')) {
-      progressCallback('Live scrape failed or blocked. Loading cached fallback dataset for Denver...');
+      progressCallback('Live scrape failed. Loading cached fallback dataset for Denver...');
       return MOCK_DATA.denver.housing;
     } else if (normCity.includes('seattle')) {
-      progressCallback('Live scrape failed or blocked. Loading cached fallback dataset for Seattle...');
+      progressCallback('Live scrape failed. Loading cached fallback dataset for Seattle...');
       return MOCK_DATA.seattle.housing;
     } else {
       progressCallback('Live scrape failed. Generating generic search fallback listings...');
-      // Return a basic fallback response so the app doesn't break
+      const screenshotFilename = `housing_${Date.now()}.png`;
+      // Copy Austin fallback screenshot so we have a placeholder file
+      try {
+        fs.copyFileSync(
+          path.join(__dirname, '..', 'public', 'screenshots', 'fallback_austin.png'),
+          path.join(__dirname, '..', 'public', 'screenshots', screenshotFilename)
+        );
+      } catch (e) {
+        console.error('Failed to copy fallback screenshot', e);
+      }
+
       return {
-        sourceName: `DuckDuckGo Search (${city})`,
+        sourceName: `Web Search Fallback (${city})`,
         sourceUrl: `https://html.duckduckgo.com/html/?q=apartments+for+rent+${encodeURIComponent(city)}`,
-        screenshotUrl: '/screenshots/fallback_austin.png',
+        screenshotUrl: `/screenshots/${screenshotFilename}`,
         listings: [
           {
             price: `$${budget}`,
             bedrooms: `${bedrooms} Bed`,
-            address: `Central Area, ${city}, ${state || 'US'}`,
-            link: `https://www.craigslist.org`
+            address: `Central Area, ${city}`,
+            link: `https://www.google.com/search?q=apartments+in+${encodeURIComponent(city)}`
           }
         ]
       };

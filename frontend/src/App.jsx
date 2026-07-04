@@ -69,7 +69,8 @@ export default function App() {
   }, [logs]);
 
   const addLog = (message, type = 'info') => {
-    setLogs(prev => [...prev, { id: Date.now(), text: message, type, time: new Date().toLocaleTimeString() }]);
+    const logId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    setLogs(prev => [...prev, { id: logId, text: message, type, time: new Date().toLocaleTimeString() }]);
   };
 
   const handleStartSearch = (e) => {
@@ -158,17 +159,21 @@ export default function App() {
       setSearchStatus('error');
     };
 
-    ws.onclose = () => {
-      addLog('Connection to orchestrator closed.', 'system');
-      setSearchStatus(prev => prev === 'searching' ? 'complete' : prev);
-    };
   };
 
   // Check if all agents completed
   const isSearchComplete = 
-    agents.housing.status === 'complete' || agents.housing.status === 'error' &&
-    agents.utilities.status === 'complete' || agents.utilities.status === 'error' &&
-    agents.dmv.status === 'complete' || agents.dmv.status === 'error';
+    (agents.housing.status === 'complete' || agents.housing.status === 'error') &&
+    (agents.utilities.status === 'complete' || agents.utilities.status === 'error') &&
+    (agents.dmv.status === 'complete' || agents.dmv.status === 'error');
+
+  // Automatically transition searchStatus to complete when all agents finish
+  useEffect(() => {
+    if (searchStatus === 'searching' && isSearchComplete) {
+      setSearchStatus('complete');
+      addLog('All research agents have completed their tasks.', 'system');
+    }
+  }, [isSearchComplete, searchStatus]);
 
   // Toggle DMV checklist
   const toggleDoc = (docIndex) => {
@@ -282,7 +287,7 @@ Brief created by Moving Day Relocation Concierge.
               </p>
             </div>
             
-            <form onSubmit={handleStartSearch} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <form onSubmit={handleStartSearch} className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="flex flex-col space-y-1.5">
                 <label className="text-xs text-slate-400 font-medium flex items-center">
                   <MapPin className="h-3.5 w-3.5 text-slate-500 mr-1.5" /> Current City
@@ -366,7 +371,7 @@ Brief created by Moving Day Relocation Concierge.
                 </select>
               </div>
 
-              <div className="md:col-span-2 lg:col-span-3 pt-2">
+              <div className="col-span-full pt-2">
                 <button
                   type="submit"
                   disabled={searchStatus === 'searching'}
@@ -463,7 +468,7 @@ Brief created by Moving Day Relocation Concierge.
         )}
 
         {/* Dashboard Grid */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 align-stretch">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           
           {/* CARD 1: HOUSING AGENT */}
           <div className="glass-panel rounded-2xl flex flex-col justify-between overflow-hidden">
