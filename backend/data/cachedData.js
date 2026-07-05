@@ -127,25 +127,25 @@ export const MOCK_DATA = {
           price: "$2,100",
           bedrooms: "2 Bed",
           address: "East Riverside Dr, Austin, TX 78741",
-          link: "https://www.zillow.com/austin-tx/rentals/2-bedrooms/"
+          link: "https://austin.craigslist.org/search/apa?query=2-bedrooms/"
         },
         {
           price: "$2,250",
           bedrooms: "2 Bed",
           address: "Mueller District, Austin, TX 78723",
-          link: "https://www.apartments.com/austin-tx/2-bedrooms/"
+          link: "https://austin.craigslist.org/search/apa?query=2-bedrooms/"
         },
         {
           price: "$1,980",
           bedrooms: "2 Bed",
           address: "Domain Boulevard, Austin, TX 78758",
-          link: "https://www.trulia.com/for_rent/Austin,TX/2p_beds/"
+          link: "https://austin.craigslist.org/search/apa?query=2p_beds/"
         },
         {
           price: "$2,400",
           bedrooms: "2 Bed",
           address: "Zilker Neighborhood, Austin, TX 78704",
-          link: "https://hotpads.com/austin-tx/apartments-for-rent?bedrooms=2"
+          link: "https://austin.craigslist.org/search/apa?query=?bedrooms=2"
         }
       ]
     },
@@ -215,25 +215,25 @@ export const MOCK_DATA = {
           price: "$2,300",
           bedrooms: "2 Bed",
           address: "LoDo / Union Station, Denver, CO 80202",
-          link: "https://www.zillow.com/denver-co/rentals/2-bedrooms/"
+          link: "https://austin.craigslist.org/search/apa?query=2-bedrooms/"
         },
         {
           price: "$2,150",
           bedrooms: "2 Bed",
           address: "Five Points / RiNo, Denver, CO 80205",
-          link: "https://www.apartments.com/denver-co/2-bedrooms/"
+          link: "https://austin.craigslist.org/search/apa?query=2-bedrooms/"
         },
         {
           price: "$1,890",
           bedrooms: "2 Bed",
           address: "Washington Park, Denver, CO 80209",
-          link: "https://www.trulia.com/for_rent/Denver,CO/2p_beds/"
+          link: "https://austin.craigslist.org/search/apa?query=2p_beds/"
         },
         {
           price: "$2,450",
           bedrooms: "2 Bed",
           address: "Cherry Creek, Denver, CO 80206",
-          link: "https://hotpads.com/denver-co/apartments-for-rent?bedrooms=2"
+          link: "https://austin.craigslist.org/search/apa?query=?bedrooms=2"
         }
       ]
     },
@@ -303,25 +303,25 @@ export const MOCK_DATA = {
           price: "$2,450",
           bedrooms: "2 Bed",
           address: "Ballard Neighborhood, Seattle, WA 98107",
-          link: "https://www.zillow.com/seattle-wa/rentals/2-bedrooms/"
+          link: "https://austin.craigslist.org/search/apa?query=2-bedrooms/"
         },
         {
           price: "$2,100",
           bedrooms: "2 Bed",
           address: "Queen Anne, Seattle, WA 98109",
-          link: "https://www.apartments.com/seattle-wa/2-bedrooms/"
+          link: "https://austin.craigslist.org/search/apa?query=2-bedrooms/"
         },
         {
           price: "$1,980",
           bedrooms: "2 Bed",
           address: "University District, Seattle, WA 98105",
-          link: "https://www.trulia.com/for_rent/Seattle,WA/2p_beds/"
+          link: "https://austin.craigslist.org/search/apa?query=2p_beds/"
         },
         {
           price: "$2,600",
           bedrooms: "2 Bed",
           address: "Fremont Neighborhood, Seattle, WA 98103",
-          link: "https://hotpads.com/seattle-wa/apartments-for-rent?bedrooms=2"
+          link: "https://austin.craigslist.org/search/apa?query=?bedrooms=2"
         }
       ]
     },

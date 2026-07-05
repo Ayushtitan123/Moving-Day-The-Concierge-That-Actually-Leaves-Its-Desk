@@ -8,42 +8,39 @@ import { MOCK_DATA } from '../data/cachedData.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-/**
- * Sanitize a listing link. Ensures:
- * - Link is an absolute https:// URL
- * - Removes DuckDuckGo redirect wrappers (decodes the real destination URL)
- * - Falls back to a Google search for the city if nothing valid
- */
-function sanitizeLink(link, city) {
+function sanitizeLink(link, city, baseUrl) {
   if (!link || typeof link !== 'string') {
     return `https://www.google.com/search?q=apartments+for+rent+in+${encodeURIComponent(city)}`;
   }
 
-  // Try to decode DDG redirect links
   if (link.includes('duckduckgo.com')) {
     try {
       const parsed = new URL(link);
       const uddg = parsed.searchParams.get('uddg');
       if (uddg) {
         link = decodeURIComponent(uddg);
-      } else {
-        // Can't recover a real link from DDG — use Google fallback
-        return `https://www.google.com/search?q=apartments+for+rent+in+${encodeURIComponent(city)}`;
       }
-    } catch (_) {
-      return `https://www.google.com/search?q=apartments+for+rent+in+${encodeURIComponent(city)}`;
+    } catch (_) {}
+  }
+
+  // Handle relative URLs
+  if (link.startsWith('/')) {
+    if (baseUrl) {
+      try {
+        const urlObj = new URL(link, baseUrl);
+        link = urlObj.href;
+      } catch (e) {
+        link = 'https://' + baseUrl.replace(/^https?:\/\//, '') + link;
+      }
     }
   }
 
-  // Ensure scheme is present
   if (!link.startsWith('http://') && !link.startsWith('https://')) {
     link = 'https://' + link;
   }
 
-  // Validate the URL is parseable
   try {
     new URL(link);
     return link;
@@ -52,22 +49,43 @@ function sanitizeLink(link, city) {
   }
 }
 
-/**
- * Sanitize all listing links in a listingsData object
- */
-function sanitizeAllLinks(listingsData, city) {
-  if (listingsData && Array.isArray(listingsData.listings)) {
-    listingsData.listings = listingsData.listings.map(l => ({
-      ...l,
-      link: sanitizeLink(l.link, city)
-    }));
+async function validateLink(url) {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    // Some real estate sites return 403 for bots, assume valid if 403, invalid if 404
+    if (response.status === 404 || response.status >= 500) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    // If it fails due to CORS or abort, we assume it's valid to not falsely drop it
+    return true; 
   }
-  return listingsData;
 }
 
-/**
- * Navigate with retry logic for flaky DuckDuckGo connections
- */
+async function validateListings(listings, city, baseUrl) {
+  const validListings = [];
+  for (const list of listings) {
+    list.link = sanitizeLink(list.link, city, baseUrl);
+    const isValid = await validateLink(list.link);
+    if (isValid) {
+      validListings.push(list);
+    } else {
+      console.log(`[Validation Failed] Dropping link: ${list.link}`);
+      list.link = `https://www.google.com/search?q=apartments+for+rent+in+${encodeURIComponent(city)}`;
+      validListings.push(list); // Fallback applied
+    }
+  }
+  return validListings;
+}
+
 async function gotoWithRetry(page, url, options = {}, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -75,15 +93,11 @@ async function gotoWithRetry(page, url, options = {}, retries = 2) {
       return;
     } catch (err) {
       if (attempt === retries) throw err;
-      console.log(`Navigation attempt ${attempt + 1} failed for ${url}. Retrying...`);
       await page.waitForTimeout(2000);
     }
   }
 }
 
-/**
- * Generate a city-labeled placeholder screenshot using Playwright
- */
 async function generatePlaceholderScreenshot(screenshotPath, city, state) {
   let browser2 = null;
   try {
@@ -101,20 +115,15 @@ async function generatePlaceholderScreenshot(screenshotPath, city, state) {
     await pg2.setContent(html);
     await pg2.screenshot({ path: screenshotPath });
     await browser2.close();
-    browser2 = null;
     return true;
   } catch (err) {
-    console.error('Placeholder screenshot generation failed:', err.message);
-    if (browser2) {
-      try { await browser2.close(); } catch (_) { /* ignore */ }
-    }
+    if (browser2) try { await browser2.close(); } catch (_) {}
     return false;
   }
 }
 
 export async function runHousingAgent(city, state, budget, bedrooms, progressCallback) {
   const normCity = city.trim().toLowerCase();
-
   progressCallback('Resolving search target...');
   let subdomain = null;
   let browser = null;
@@ -129,12 +138,10 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
     });
     const page = await context.newPage();
 
-    // Step 1: Check if Craigslist has a subdomain for the city via DuckDuckGo
     const searchQuery = `site:craigslist.org ${city} apartments for rent`;
     const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchQuery)}`;
     await gotoWithRetry(page, searchUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
-    // Extract & decode DDG result links to find real craigslist URLs
     const links = await page.evaluate(() => {
       const results = [];
       document.querySelectorAll('a.result__url').forEach(el => {
@@ -150,14 +157,12 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
     });
 
     if (links.length > 0) {
-      const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const geminiModel = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
       const prompt = `Given these links: ${JSON.stringify(links.slice(0, 10))}\nIdentify the Craigslist subdomain for the city "${city}, ${state || ''}". Examples: "austin" for austin.craigslist.org, "tokyo" for tokyo.craigslist.org. If no Craigslist subdomain exists for this city, return {"subdomain": null}`;
-
       const response = await geminiModel.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json' }
       });
-
       const parsed = JSON.parse(response.response.text().trim());
       if (parsed.subdomain && parsed.subdomain !== 'www') {
         subdomain = parsed.subdomain;
@@ -166,59 +171,61 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
 
     let listingsData = null;
 
-    // ─── PATH A: Craigslist ───────────────────────────────────────────────────
     if (subdomain) {
       progressCallback(`Connecting to Craigslist (${subdomain}.craigslist.org)...`);
-
       const targetUrl = `https://${subdomain}.craigslist.org/search/apa?max_price=${budget}&min_bedrooms=${bedrooms}&max_bedrooms=${bedrooms}`;
-      console.log(`Housing Agent: visiting ${targetUrl}`);
-
       await gotoWithRetry(page, targetUrl, { waitUntil: 'networkidle', timeout: 25000 });
-
       progressCallback('Capturing listing screenshot...');
       await page.screenshot({ path: screenshotPath });
 
       const listingsText = await page.evaluate(() => {
         const data = [];
+        let idCounter = 1;
         document.querySelectorAll('a').forEach(el => {
           const text = el.innerText.trim();
           const href = el.href;
           if (text.length > 5 && href.includes('/apa/')) {
-            data.push({ text, href });
+            data.push({ id: idCounter++, text, href });
           }
         });
         return {
           bodyText: document.body.innerText.substring(0, 8000),
-          links: data.slice(0, 30)
+          links: data.slice(0, 40)
         };
       });
 
+      console.log('--- RAW SCRAPED CRAIGSLIST LINKS ---');
+      listingsText.links.forEach(l => console.log(`ID ${l.id}: ${l.href}`));
+
       if (listingsText.links.length >= 2) {
         progressCallback('Extracting listings via Gemini...');
-        const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const geminiModel = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+        
+        // Exclude raw URLs from Gemini prompt, just send IDs and texts
+        const linkTexts = listingsText.links.map(l => ({ id: l.id, text: l.text }));
+        
         const extractionPrompt = `
           You are an AI Housing Assistant. I have scraped a Craigslist page for apartments in ${city}, ${state || ''} under $${budget} with ${bedrooms} bedrooms.
-          Here is the scraped data:
           
           BODY TEXT:
           ${listingsText.bodyText}
           
-          LINKS DETECTED (these are real, absolute Craigslist hrefs):
-          ${JSON.stringify(listingsText.links)}
+          LINKS DETECTED (IDs and Texts):
+          ${JSON.stringify(linkTexts)}
           
           Extract the top 5 listings. Return a JSON structure.
           For each listing, find:
           - price (e.g. $1,800)
           - bedrooms (e.g. 2 Bed)
           - address (street address or neighborhood in ${city})
-          - link: MUST be one of the href values from LINKS DETECTED. It must start with "https://". Do NOT invent or modify the URL.
+          - linkId: MUST be the exact integer "id" from the LINKS DETECTED list that matches this listing.
           
           Format the response in JSON:
           {
             "sourceName": "Craigslist ${city}",
             "sourceUrl": "${targetUrl}",
             "listings": [
-              { "price": "...", "bedrooms": "...", "address": "...", "link": "..." }
+              { "price": "...", "bedrooms": "...", "address": "...", "linkId": 1 }
             ]
           }
         `;
@@ -228,31 +235,40 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
           generationConfig: { responseMimeType: 'application/json' }
         });
 
-        listingsData = JSON.parse(response.response.text().trim());
-        listingsData = sanitizeAllLinks(listingsData, city);
+        const parsed = JSON.parse(response.response.text().trim());
+        
+        // Re-attach the exact raw URLs using the IDs
+        parsed.listings = parsed.listings.map(l => {
+          const originalLink = listingsText.links.find(x => x.id === l.linkId);
+          return {
+            price: l.price,
+            bedrooms: l.bedrooms,
+            address: l.address,
+            link: originalLink ? originalLink.href : targetUrl // fallback to search page if ID fails
+          };
+        });
+
+        parsed.listings = await validateListings(parsed.listings, city, targetUrl);
+        listingsData = parsed;
       }
     }
 
-    // ─── PATH B: DuckDuckGo Web Search Fallback ───────────────────────────────
     if (!listingsData) {
-      progressCallback(`Craigslist unavailable. Searching web for rentals in ${city}...`);
+      progressCallback(`Searching web for rentals in ${city}...`);
       const ddgSearchQuery = `apartments for rent in ${city} ${state || ''} ${bedrooms} bedroom`;
       const ddgSearchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(ddgSearchQuery)}`;
-
       await gotoWithRetry(page, ddgSearchUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-
       progressCallback('Capturing web search verification screenshot...');
       await page.screenshot({ path: screenshotPath });
 
-      // Extract search results - decode DDG redirect URLs to real destination URLs
       const searchResults = await page.evaluate(() => {
         const results = [];
+        let idCounter = 1;
         document.querySelectorAll('.result').forEach(el => {
           const titleEl = el.querySelector('.result__title');
           const snippetEl = el.querySelector('.result__snippet');
           const linkEl = el.querySelector('a.result__url');
           const urlTextEl = el.querySelector('.result__url');
-
           if (titleEl && snippetEl) {
             let url = '';
             if (linkEl && linkEl.href) {
@@ -266,47 +282,45 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
             } else if (urlTextEl) {
               url = urlTextEl.innerText.trim();
             }
-
             if (url && !url.startsWith('http')) url = 'https://' + url;
-
-            results.push({
-              title: titleEl.innerText.trim(),
-              snippet: snippetEl.innerText.trim(),
-              url
-            });
+            results.push({ id: idCounter++, title: titleEl.innerText.trim(), snippet: snippetEl.innerText.trim(), url });
           }
         });
         return results.slice(0, 15);
       });
+
+      console.log('--- RAW SCRAPED WEB SEARCH LINKS ---');
+      searchResults.forEach(r => console.log(`ID ${r.id}: ${r.url}`));
 
       if (searchResults.length === 0) {
         throw new Error('Web search returned no results.');
       }
 
       progressCallback('Synthesizing listings from search results...');
-      const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const geminiModel = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+      
+      const promptData = searchResults.map(r => ({ id: r.id, title: r.title, snippet: r.snippet }));
+
       const prompt = `
         You are an AI Housing Assistant. I have searched the web for apartments in ${city}, ${state || ''} within a budget of ${budget} with ${bedrooms} bedrooms.
-        Here are search results with REAL destination URLs already decoded:
-        ${JSON.stringify(searchResults)}
+        Here are search results:
+        ${JSON.stringify(promptData)}
         
         Extract the top 5 rental listings or real estate portals for ${city}.
         Use realistic local prices (₹ for India, ¥ for Japan, S$ for Singapore, £ for UK, $ for US/generic).
         
         For each listing:
-        - price: realistic rent for ${city} (e.g. ₹15,000 for Patna India, ₹45,000 for Mumbai India, $1,800 for Austin TX)
+        - price: realistic rent for ${city} (e.g. ₹15,000 for Patna India, $1,800 for Austin TX)
         - bedrooms: "${bedrooms} Bed"
         - address: a real neighborhood, district, or area name within ${city}
-        - link: Copy EXACTLY one of the "url" values from the search results above.
-          Rules: must start with "https://", must NOT be a duckduckgo.com link, must NOT be a google.com link.
-          If no valid link exists in results, use a known real-estate site for ${city}'s country (e.g. https://www.99acres.com for India, https://www.rightmove.co.uk for UK).
+        - linkId: MUST be the exact integer "id" from the search results that matches this listing.
         
         Return JSON only:
         {
           "sourceName": "Web Search (${city})",
           "sourceUrl": "${ddgSearchUrl}",
           "listings": [
-            { "price": "...", "bedrooms": "...", "address": "...", "link": "..." }
+            { "price": "...", "bedrooms": "...", "address": "...", "linkId": 1 }
           ]
         }
       `;
@@ -315,8 +329,22 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json' }
       });
-      listingsData = JSON.parse(response.response.text().trim());
-      listingsData = sanitizeAllLinks(listingsData, city);
+      
+      const parsed = JSON.parse(response.response.text().trim());
+      
+      // Re-attach raw URLs
+      parsed.listings = parsed.listings.map(l => {
+        const originalResult = searchResults.find(x => x.id === l.linkId);
+        return {
+          price: l.price,
+          bedrooms: l.bedrooms,
+          address: l.address,
+          link: originalResult ? originalResult.url : ddgSearchUrl // fallback
+        };
+      });
+
+      parsed.listings = await validateListings(parsed.listings, city, ddgSearchUrl);
+      listingsData = parsed;
     }
 
     await browser.close();
@@ -325,36 +353,25 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
 
   } catch (err) {
     console.error('Housing Agent Scrape Error:', err.message);
-    if (browser) {
-      try { await browser.close(); } catch (_) { /* ignore */ }
-    }
+    if (browser) try { await browser.close(); } catch (_) {}
 
-    // ─── PATH C: Cached Demo Data for Known Cities ────────────────────────────
     if (normCity.includes('austin')) {
-      progressCallback('Live scrape failed. Loading cached dataset for Austin...');
       return MOCK_DATA.austin.housing;
     } else if (normCity.includes('denver')) {
-      progressCallback('Live scrape failed. Loading cached dataset for Denver...');
       return MOCK_DATA.denver.housing;
     } else if (normCity.includes('seattle')) {
-      progressCallback('Live scrape failed. Loading cached dataset for Seattle...');
       return MOCK_DATA.seattle.housing;
     } else if (normCity.includes('tokyo')) {
-      progressCallback('Live scrape failed. Loading cached dataset for Tokyo...');
       return MOCK_DATA.tokyo.housing;
     } else if (normCity.includes('singapore')) {
-      progressCallback('Live scrape failed. Loading cached dataset for Singapore...');
       return MOCK_DATA.singapore.housing;
     }
 
-    // ─── PATH D: Full Error Fallback ──────────────────────────────────────────
     progressCallback('Live scrape failed. Generating fallback listings...');
-
     const errorScreenshotFilename = `housing_${Date.now()}.png`;
     const errorScreenshotPath = path.join(__dirname, '..', 'public', 'screenshots', errorScreenshotFilename);
     await generatePlaceholderScreenshot(errorScreenshotPath, city, state);
 
-    // Build fallback links using known portals per region
     const getPortalLink = (city) => {
       const c = city.toLowerCase();
       if (/india|mumbai|delhi|bengaluru|bangalore|patna|chennai|kolkata|hyderabad|pune|jaipur|ahmedabad/.test(c)) {
@@ -378,8 +395,6 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
       }
     };
 
-    const portalLink = getPortalLink(city);
-
     return {
       sourceName: `Web Search Fallback (${city})`,
       sourceUrl: `https://html.duckduckgo.com/html/?q=apartments+for+rent+${encodeURIComponent(city)}`,
@@ -389,7 +404,7 @@ export async function runHousingAgent(city, state, budget, bedrooms, progressCal
           price: normCity.includes('india') || /mumbai|delhi|patna|chennai|kolkata|bangalore|hyderabad|pune/.test(normCity) ? '₹15,000' : '$1,500',
           bedrooms: `${bedrooms} Bed`,
           address: `Central Area, ${city}`,
-          link: sanitizeLink(portalLink, city)
+          link: sanitizeLink(getPortalLink(city), city)
         }
       ]
     };

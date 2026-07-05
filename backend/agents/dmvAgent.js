@@ -51,7 +51,7 @@ export async function runDmvAgent(stateInput, progressCallback) {
       }
 
       progressCallback('Synthesizing international licensing and registration rules via Gemini...');
-      const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const geminiModel = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
       const prompt = `
         You are an AI relocation admin assistant. I have search results for driver's license transfer/conversion and vehicle registration requirements for new residents in "${cleanState}".
         Here are the search results:
@@ -143,7 +143,7 @@ export async function runDmvAgent(stateInput, progressCallback) {
     }
 
     progressCallback(`Summarizing license and registration steps via Gemini...`);
-    const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const geminiModel = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
     const prompt = `
       You are an AI relocation admin assistant. I have loaded the official DMV website for the state: ${stateInput}.
       Here is the text extracted from the official website:

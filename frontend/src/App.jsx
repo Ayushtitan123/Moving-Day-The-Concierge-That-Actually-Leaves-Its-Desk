@@ -105,6 +105,75 @@ function InputField({ id, label, icon: Icon, iconColor = 'text-slate-400', accen
   );
 }
 
+/* ─── US States & Abbreviations Map ────────────────────────────── */
+const STATE_MAP = {
+  'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
+  'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
+  'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
+  'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+  'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
+  'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
+  'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+  'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
+  'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY',
+  'district of columbia': 'DC'
+};
+
+const US_STATES_LIST = [
+  { code: 'AL', name: 'Alabama' },
+  { code: 'AK', name: 'Alaska' },
+  { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' },
+  { code: 'CA', name: 'California' },
+  { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' },
+  { code: 'DE', name: 'Delaware' },
+  { code: 'DC', name: 'District of Columbia' },
+  { code: 'FL', name: 'Florida' },
+  { code: 'GA', name: 'Georgia' },
+  { code: 'HI', name: 'Hawaii' },
+  { code: 'ID', name: 'Idaho' },
+  { code: 'IL', name: 'Illinois' },
+  { code: 'IN', name: 'Indiana' },
+  { code: 'IA', name: 'Iowa' },
+  { code: 'KS', name: 'Kansas' },
+  { code: 'KY', name: 'Kentucky' },
+  { code: 'LA', name: 'Louisiana' },
+  { code: 'ME', name: 'Maine' },
+  { code: 'MD', name: 'Maryland' },
+  { code: 'MA', name: 'Massachusetts' },
+  { code: 'MI', name: 'Michigan' },
+  { code: 'MN', name: 'Minnesota' },
+  { code: 'MS', name: 'Mississippi' },
+  { code: 'MO', name: 'Missouri' },
+  { code: 'MT', name: 'Montana' },
+  { code: 'NE', name: 'Nebraska' },
+  { code: 'NV', name: 'Nevada' },
+  { code: 'NH', name: 'New Hampshire' },
+  { code: 'NJ', name: 'New Jersey' },
+  { code: 'NM', name: 'New Mexico' },
+  { code: 'NY', name: 'New York' },
+  { code: 'NC', name: 'North Carolina' },
+  { code: 'ND', name: 'North Dakota' },
+  { code: 'OH', name: 'Ohio' },
+  { code: 'OK', name: 'Oklahoma' },
+  { code: 'OR', name: 'Oregon' },
+  { code: 'PA', name: 'Pennsylvania' },
+  { code: 'RI', name: 'Rhode Island' },
+  { code: 'SC', name: 'South Carolina' },
+  { code: 'SD', name: 'South Dakota' },
+  { code: 'TN', name: 'Tennessee' },
+  { code: 'TX', name: 'Texas' },
+  { code: 'UT', name: 'Utah' },
+  { code: 'VT', name: 'Vermont' },
+  { code: 'VA', name: 'Virginia' },
+  { code: 'WA', name: 'Washington' },
+  { code: 'WV', name: 'West Virginia' },
+  { code: 'WI', name: 'Wisconsin' },
+  { code: 'WY', name: 'Wyoming' }
+];
+
 /* ─── Main App ──────────────────────────────────────────────────── */
 export default function App() {
   const [currentCity, setCurrentCity] = useState('');
@@ -113,6 +182,13 @@ export default function App() {
   const [moveDate, setMoveDate] = useState('');
   const [budget, setBudget] = useState('');
   const [bedrooms, setBedrooms] = useState('1');
+
+  // Autocomplete & Form validation states
+  const [suggestions, setSuggestions] = useState([]);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedFromAutocomplete, setSelectedFromAutocomplete] = useState('');
+  const [formError, setFormError] = useState('');
 
   const [searchStatus, setSearchStatus] = useState('idle');
   const [demoMode, setDemoMode] = useState(false);
@@ -146,9 +222,98 @@ export default function App() {
     setLogs(prev => [...prev, { id: logId, text: message, type, time: new Date().toLocaleTimeString() }]);
   };
 
+  const autocompleteRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchSuggestions = async (val) => {
+    if (!val || val.trim().length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    setIsFetchingSuggestions(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&countrycodes=us&addressdetails=1&featuretype=settlement&limit=5`, {
+        headers: {
+          'Accept-Language': 'en',
+          'User-Agent': 'MovingDayApp'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const parsed = data.map(item => {
+          const stateCodePart = item.address['ISO3166-2-lvl4'];
+          let stateCode = stateCodePart && stateCodePart.startsWith('US-') ? stateCodePart.substring(3).toUpperCase() : '';
+          
+          if (!stateCode && item.address.state) {
+            const stateName = item.address.state.toLowerCase();
+            stateCode = STATE_MAP[stateName] || '';
+          }
+          
+          return {
+            label: item.display_name,
+            city: item.address.city || item.address.town || item.address.village || item.address.hamlet || item.name,
+            state: stateCode
+          };
+        }).filter(item => item.city && item.state);
+        
+        const seen = new Set();
+        const unique = [];
+        for (const item of parsed) {
+          const key = `${item.city.toLowerCase()}-${item.state.toLowerCase()}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(item);
+          }
+        }
+        setSuggestions(unique);
+      }
+    } catch (err) {
+      console.error('Error fetching autocomplete suggestions:', err);
+    } finally {
+      setIsFetchingSuggestions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!destinationCity || destinationCity === selectedFromAutocomplete) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetchSuggestions(destinationCity);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [destinationCity]);
+
+  const handleSelectAutocomplete = (item) => {
+    setSelectedFromAutocomplete(item.city);
+    setDestinationCity(item.city);
+    setDestinationState(item.state);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setFormError('');
+  };
+
   const handleStartSearch = (e) => {
     e.preventDefault();
     if (!destinationCity) return;
+
+    // Check if selected state is in the valid US States list
+    const isUSState = US_STATES_LIST.some(st => st.code === destinationState.toUpperCase());
+    if (!isUSState) {
+      setFormError('Destination must be within the United States. Please select a valid US state.');
+      return;
+    }
+    setFormError('');
 
     setSearchStatus('searching');
     setLogs([]);
@@ -351,28 +516,61 @@ Created by Moving Day Relocation Concierge.`;
                 />
               </InputField>
 
-              <InputField id="destinationCity" label="Destination City" icon={MapPin} iconColor="text-indigo-400">
-                <input
-                  id="destinationCity"
-                  type="text"
-                  required
-                  placeholder="e.g. Austin"
-                  value={destinationCity}
-                  onChange={e => setDestinationCity(e.target.value)}
-                  className="input-field focus:border-indigo-500 focus:ring-indigo-500/20 border-indigo-500/20"
-                />
-              </InputField>
+              <div ref={autocompleteRef} className="relative flex flex-col space-y-1.5">
+                <InputField id="destinationCity" label="Destination City" icon={MapPin} iconColor="text-indigo-400">
+                  <input
+                    id="destinationCity"
+                    type="text"
+                    required
+                    placeholder="e.g. Austin"
+                    value={destinationCity}
+                    onChange={e => {
+                      setDestinationCity(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    className="input-field focus:border-indigo-500 focus:ring-indigo-500/20 border-indigo-500/20"
+                    autoComplete="off"
+                  />
+                </InputField>
+                {showSuggestions && (suggestions.length > 0 || isFetchingSuggestions) && (
+                  <div className="absolute top-[68px] left-0 w-full bg-[#0d1222]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto divide-y divide-white/5 scrollbar-thin">
+                    {isFetchingSuggestions && suggestions.length === 0 ? (
+                      <div className="px-4 py-3 text-xs text-slate-500 flex items-center gap-2">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+                        <span>Searching US locations...</span>
+                      </div>
+                    ) : (
+                      suggestions.map((item, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => handleSelectAutocomplete(item)}
+                          className="px-4 py-2.5 hover:bg-indigo-500/20 cursor-pointer transition-colors text-xs text-left text-slate-200"
+                        >
+                          <span className="font-bold text-white">{item.city}</span>, {item.state}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
 
-              <InputField id="destinationState" label="State Code" icon={Globe} iconColor="text-violet-400" optional>
-                <input
+              <InputField id="destinationState" label="State Code" icon={Globe} iconColor="text-violet-400">
+                <select
                   id="destinationState"
-                  type="text"
-                  maxLength={2}
-                  placeholder="e.g. TX"
+                  required
                   value={destinationState}
-                  onChange={e => setDestinationState(e.target.value)}
-                  className="input-field uppercase focus:border-violet-500 focus:ring-violet-500/20"
-                />
+                  onChange={e => {
+                    setDestinationState(e.target.value);
+                    setFormError('');
+                  }}
+                  className="input-field focus:border-violet-500 focus:ring-violet-500/20"
+                >
+                  <option value="">Select State...</option>
+                  {US_STATES_LIST.map(st => (
+                    <option key={st.code} value={st.code}>{st.name} ({st.code})</option>
+                  ))}
+                </select>
               </InputField>
 
               <InputField id="moveDate" label="Move Date" icon={Calendar} iconColor="text-sky-400">
@@ -412,6 +610,13 @@ Created by Moving Day Relocation Concierge.`;
                   <option value="4">4+ Bedrooms</option>
                 </select>
               </InputField>
+
+              {formError && (
+                <div className="col-span-full text-xs text-rose-400 bg-rose-500/10 border border-rose-500/25 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
 
               <div className="col-span-full pt-2">
                 <button
@@ -540,6 +745,7 @@ Created by Moving Day Relocation Concierge.`;
             statusColor="teal"
             spinnerColor="text-teal-400"
             pingColor="border-teal-500/20"
+            errorMessage={agents.housing.message}
           >
             {agents.housing.status === 'complete' && agents.housing.data && (
               <div className="space-y-5">
@@ -591,6 +797,7 @@ Created by Moving Day Relocation Concierge.`;
             statusColor="amber"
             spinnerColor="text-amber-400"
             pingColor="border-amber-500/20"
+            errorMessage={agents.utilities.message}
           >
             {agents.utilities.status === 'complete' && agents.utilities.data && (
               <div className="space-y-4">
@@ -642,6 +849,7 @@ Created by Moving Day Relocation Concierge.`;
             statusColor="rose"
             spinnerColor="text-rose-400"
             pingColor="border-rose-500/20"
+            errorMessage={agents.dmv.message}
           >
             {agents.dmv.status === 'complete' && agents.dmv.data && (
               <div className="space-y-5">
@@ -704,7 +912,7 @@ Created by Moving Day Relocation Concierge.`;
 }
 
 /* ─── Reusable Agent Result Card ────────────────────────────────── */
-function AgentCard({ title, subtitle, icon: Icon, iconColor, iconBg, borderAccent, topBar, status, statusColor, spinnerColor, pingColor, children }) {
+function AgentCard({ title, subtitle, icon: Icon, iconColor, iconBg, borderAccent, topBar, status, statusColor, spinnerColor, pingColor, errorMessage, children }) {
   const isActive = status === 'searching' || status === 'scraping' || status === 'parsing';
 
   return (
@@ -752,11 +960,12 @@ function AgentCard({ title, subtitle, icon: Icon, iconColor, iconBg, borderAccen
         )}
 
         {status === 'error' && (
-          <div className="py-12 text-center">
+          <div className="py-12 text-center px-4">
             <div className="inline-flex p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 mb-3">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <p className="text-sm text-slate-300 font-semibold">Agent Search Interrupted</p>
+            <p className="text-sm text-slate-300 font-semibold mb-2">Agent Search Interrupted</p>
+            <p className="text-xs text-slate-400 leading-relaxed">{errorMessage || 'The search process encountered an error.'}</p>
           </div>
         )}
 

@@ -43,22 +43,39 @@ import { runHousingAgent } from './agents/housingAgent.js';
 import { runUtilitiesAgent } from './agents/utilitiesAgent.js';
 import { runDmvAgent } from './agents/dmvAgent.js';
 
-// Helper: Auto-resolve state code using Gemini
-async function autoResolveState(city) {
+const US_STATES = new Set([
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+]);
+
+// Helper: Validate and auto-resolve state code using Gemini
+async function validateAndResolveLocation(city, state) {
   if (!process.env.GEMINI_API_KEY) {
-    console.warn("GEMINI_API_KEY is not defined. Cannot auto-resolve state.");
-    return "";
+    console.warn("GEMINI_API_KEY is not defined. Cannot validate location.");
+    return state || "UNKNOWN";
   }
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const prompt = `Identify the 2-letter US state code for the city: "${city}". If the city is outside the US, identify the primary region/state code or country code. Return ONLY the 2-letter uppercase code (e.g. TX, CO, WA, NY). Do not include any other text or punctuation.`;
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+    const prompt = `You are a strict geography verification assistant. The user entered Destination City: "${city}", State/Region: "${state || ''}".
+Determine if this location represents a valid, real city located strictly within the 50 United States or DC.
+If it is a valid US city, return ONLY its 2-letter uppercase US state code (e.g., TX, CO, WA).
+If it is outside the US, or if it is a nonsense/invalid name, return exactly the string "NON_US". Do not return anything else.`;
     const response = await model.generateContent(prompt);
-    const result = response.response.text().trim().toUpperCase();
-    return result.length === 2 ? result : "";
+    let result = response.response.text().trim().toUpperCase();
+    
+    // Strict enforcement: if Gemini returned a 2-letter code that isn't a US state (like ON for Ontario), force NON_US
+    if (result !== 'NON_US' && !US_STATES.has(result)) {
+      result = 'NON_US';
+    }
+    
+    return result;
   } catch (err) {
     console.error("Auto-resolve state error:", err);
-    return "";
+    return "UNKNOWN";
   }
 }
 
@@ -73,24 +90,30 @@ wss.on('connection', (ws) => {
         
         let resolvedState = destinationState ? destinationState.trim().toUpperCase() : '';
         
-        if (!resolvedState && destinationCity) {
-          console.log(`State code missing. Auto-detecting state code for: ${destinationCity}`);
+        console.log(`Validating location scope for: ${destinationCity}, ${resolvedState}`);
+        if (ws.readyState === ws.OPEN) {
+          ws.send(JSON.stringify({ 
+            type: 'progress', 
+            agent: 'dmv', 
+            status: 'searching', 
+            message: `Verifying service coverage for "${destinationCity}"...` 
+          }));
+        }
+        
+        resolvedState = await validateAndResolveLocation(destinationCity, resolvedState);
+        
+        if (resolvedState === 'NON_US') {
+          console.log(`Location "${destinationCity}" is outside US or invalid. Bypassing agents.`);
           if (ws.readyState === ws.OPEN) {
-            ws.send(JSON.stringify({ 
-              type: 'progress', 
-              agent: 'dmv', 
-              status: 'searching', 
-              message: `Auto-detecting state code for "${destinationCity}"...` 
-            }));
+            const errMsg = 'We currently only support relocations within the United States. Please enter a valid US city.';
+            ['housing', 'utilities', 'dmv'].forEach(a => {
+              ws.send(JSON.stringify({ type: 'error', agent: a, message: errMsg }));
+            });
           }
-          
-          resolvedState = await autoResolveState(destinationCity);
-          
-          if (resolvedState && ws.readyState === ws.OPEN) {
-            console.log(`Auto-resolved state code for "${destinationCity}": ${resolvedState}`);
+          return; // Early exit
+        } else if (resolvedState && resolvedState !== 'UNKNOWN') {
+          if (ws.readyState === ws.OPEN) {
             ws.send(JSON.stringify({ type: 'stateResolved', state: resolvedState }));
-          } else {
-            console.log(`Could not auto-resolve state code for "${destinationCity}".`);
           }
         }
         

@@ -60,7 +60,7 @@ export async function runUtilitiesAgent(city, state, progressCallback) {
       internet: internetData.slice(0, 5)
     };
 
-    const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const geminiModel = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
     const prompt = `
       You are an AI relocation assistant. I have scraped search results for utility providers in ${city}, ${state}.
       Here are the search results:
