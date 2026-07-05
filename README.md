@@ -6,7 +6,7 @@
 [![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-8.x-purple?logo=vite)](https://vitejs.dev/)
 [![Playwright](https://img.shields.io/badge/Playwright-1.44-orange?logo=playwright)](https://playwright.dev/)
-[![Gemini](https://img.shields.io/badge/Gemini-2.5--Flash-red?logo=google)](https://ai.google.dev/)
+[![Gemini](https://img.shields.io/badge/Gemini-3.5--Flash-red?logo=google)](https://ai.google.dev/)
 
 ---
 
@@ -48,8 +48,8 @@ Results are streamed back to the browser in real time using WebSockets, so you w
 |---|---|
 | 🤖 **3 Parallel AI Agents** | Housing, Utilities, and DMV agents run simultaneously |
 | 🔴 **Real-Time Streaming** | WebSocket-based live progress updates in the UI |
-| 🌍 **Global City Support** | Works for US cities (Craigslist) and international cities (web search fallback) |
-| 🔍 **Auto State Detection** | Gemini AI auto-detects the 2-letter state code if you leave it blank |
+| 🇺🇸 **US-Only Support** | Restricted to US relocations via client-side and server-side geocoding validation |
+| 🔍 **Geocoding Autocomplete** | Destination City input auto-completes and auto-detects state codes using Nominatim API |
 | 📸 **Verification Screenshots** | Each agent captures a screenshot of the source page as proof |
 | 📥 **PDF Export** | Download a full relocation brief as a formatted Markdown/PDF |
 | 🌙 **Dark Mode UI** | Premium glassmorphism design with smooth animations |
@@ -76,7 +76,7 @@ Results are streamed back to the browser in real time using WebSockets, so you w
 | **Express.js** | HTTP server & static file serving |
 | **ws (WebSockets)** | Real-time streaming to browser |
 | **Playwright** | Headless Chromium browser automation |
-| **Google Gemini 2.5 Flash** | AI for data extraction, link parsing, state detection |
+| **Google Gemini 3.5 Flash** | AI for data extraction, link parsing, geocoding validation |
 | **dotenv** | Environment variable management |
 
 ---
@@ -106,7 +106,7 @@ Results are streamed back to the browser in real time using WebSockets, so you w
 │   │              WebSocket Message Handler                  │   │
 │   │                                                         │   │
 │   │  1. Parse "startSearch" event                          │   │
-│   │  2. Auto-resolve state code (Gemini) if missing        │   │
+│   │  2. Server-side validation of US locations (Gemini)    │   │
 │   │  3. Fan out to 3 agents in parallel (Promise.all)      │   │
 │   └──────────────┬──────────────┬──────────────┬────────────┘   │
 │                  │              │              │                 │
@@ -121,7 +121,7 @@ Results are streamed back to the browser in real time using WebSockets, so you w
 │         └────────────────────┬───────────────────────────┘      │
 │                              │                                  │
 │         ┌────────────────────▼───────────────────────────┐      │
-│         │           Google Gemini 2.5 Flash              │      │
+│         │           Google Gemini 3.5 Flash              │      │
 │         │   (Extracts structured data from raw HTML)     │      │
 │         └────────────────────────────────────────────────┘      │
 └─────────────────────────────────────────────────────────────────┘
@@ -144,11 +144,11 @@ sequenceDiagram
     U->>FE: Fill form & click "Start Research"
     FE->>BE: WebSocket: startSearch { city, state, budget, bedrooms }
     
-    alt State code is blank
-        BE->>GEM: "What is the 2-letter state code for [city]?"
-        GEM-->>BE: "TX" / "WA" / "MH" etc.
-        BE->>FE: WebSocket: stateResolved { state: "TX" }
-        FE->>U: Auto-fills state code field
+    alt Invalid/Non-US Location
+        BE->>GEM: Validate location
+        GEM-->>BE: "NON_US"
+        BE->>FE: WebSocket: error { message: "US Only" }
+        FE->>U: Displays friendly US-Only Error (Early Exit)
     end
 
     par Run 3 agents in parallel
@@ -252,21 +252,17 @@ flowchart TD
 
 ---
 
-### 🔍 Auto State Resolution Flow
+### 🔍 US Location Validation Flow
 
 ```mermaid
 flowchart LR
-    A([User submits form\nwithout state code]) --> B{State code\nblank?}
-    B -- No --> C[Use provided state code]
-    B -- Yes --> D[Send progress update:\nAuto-detecting state...]
-    D --> E[Gemini: What is the 2-letter\nstate code for city?]
-    E --> F{Valid\n2-letter code?}
-    F -- Yes --> G[Emit stateResolved to frontend]
-    G --> H[Frontend auto-fills\nstate field in UI]
-    H --> I[Use resolved state\nfor all 3 agents]
-    F -- No --> J[Proceed with empty state\nDMV uses generic web search]
-    C --> I
-    J --> I
+    A([User types city in UI]) --> B[Nominatim Autocomplete API (US-only)]
+    B --> C[User selects valid US city & state]
+    C --> D[Submit Form]
+    D --> E[Backend Gemini Validation]
+    E --> F{Is it a\nvalid US City?}
+    F -- Yes --> G[Fan out 3 Agents]
+    F -- No --> H[Early Exit: Return US-Only Error]
 ```
 
 ---
@@ -410,8 +406,8 @@ Demo mode uses pre-cached data for these 5 cities:
 2. USER FILLS FORM
    ├─ Current City (e.g. "New York")
    ├─ Destination City (e.g. "Austin")
-   ├─ Destination State Code — OPTIONAL (e.g. "TX")
-   │   └─ If blank → Gemini auto-detects it
+   ├─ Destination State Code — REQUIRED (e.g. "TX")
+   │   └─ Auto-filled via Nominatim Autocomplete
    ├─ Move Date
    ├─ Max Rent Budget ($)
    └─ Number of Bedrooms
@@ -420,7 +416,7 @@ Demo mode uses pre-cached data for these 5 cities:
    └─ WebSocket message sent to backend
 
 4. BACKEND PROCESSES REQUEST
-   ├─ [Optional] Auto-resolve state code via Gemini
+   ├─ Server-side validation of US location
    ├─ Fan out 3 agents simultaneously
    │
    ├─ HOUSING AGENT:
@@ -497,7 +493,7 @@ Demo mode uses pre-cached data for these 5 cities:
 |---|---|
 | **Gemini Rate Limits** | Free tier: 20 requests/minute. Running multiple searches quickly may trigger a 429 error |
 | **DuckDuckGo Throttling** | Aggressive scraping may result in connection resets (`ERR_CONNECTION_RESET`) |
-| **Craigslist Coverage** | Only US cities with Craigslist subdomains get Craigslist results; international cities use web search fallback |
+| **Craigslist Coverage** | Only US cities with Craigslist subdomains get Craigslist results |
 | **DMV Timeouts** | Some state government websites are slow and may time out (agent falls back to web search) |
 | **No Persistent Storage** | Results are not saved between sessions |
 
